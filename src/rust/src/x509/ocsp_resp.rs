@@ -10,7 +10,7 @@ use cryptography_x509::{
     ocsp_resp::{self, OCSPResponse as RawOCSPResponse, SingleResponse as RawSingleResponse},
     oid,
 };
-use pyo3::prelude::{PyAnyMethods, PyBytesMethods, PyListMethods, PyModuleMethods};
+use pyo3::types::{PyAnyMethods, PyBytesMethods, PyListMethods, PyModuleMethods};
 
 use crate::asn1::{big_byte_slice_to_py_int, oid_to_py_oid};
 use crate::error::{CryptographyError, CryptographyResult};
@@ -19,7 +19,7 @@ use crate::{exceptions, types, x509};
 
 const BASIC_RESPONSE_OID: asn1::ObjectIdentifier = asn1::oid!(1, 3, 6, 1, 5, 5, 7, 48, 1, 1);
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
 fn load_der_ocsp_response(
     py: pyo3::Python<'_>,
     data: pyo3::Py<pyo3::types::PyBytes>,
@@ -46,7 +46,7 @@ fn load_der_ocsp_response(
                 ))
             }
         },
-        MALFORMED_REQUEST_RESPOSNE
+        MALFORMED_REQUEST_RESPONSE
         | INTERNAL_ERROR_RESPONSE
         | TRY_LATER_RESPONSE
         | SIG_REQUIRED_RESPONSE
@@ -72,7 +72,7 @@ self_cell::self_cell!(
     }
 );
 
-#[pyo3::prelude::pyclass(frozen, module = "cryptography.hazmat.bindings._rust.ocsp")]
+#[pyo3::pyclass(frozen, module = "cryptography.hazmat.bindings._rust.ocsp")]
 struct OCSPResponse {
     raw: Arc<OwnedOCSPResponse>,
 
@@ -92,14 +92,14 @@ impl OCSPResponse {
 }
 
 const SUCCESSFUL_RESPONSE: u32 = 0;
-const MALFORMED_REQUEST_RESPOSNE: u32 = 1;
+const MALFORMED_REQUEST_RESPONSE: u32 = 1;
 const INTERNAL_ERROR_RESPONSE: u32 = 2;
 const TRY_LATER_RESPONSE: u32 = 3;
 // 4 is unused
 const SIG_REQUIRED_RESPONSE: u32 = 5;
 const UNAUTHORIZED_RESPONSE: u32 = 6;
 
-#[pyo3::prelude::pymethods]
+#[pyo3::pymethods]
 impl OCSPResponse {
     #[getter]
     fn responses(&self) -> Result<OCSPResponseIterator, CryptographyError> {
@@ -131,7 +131,7 @@ impl OCSPResponse {
         let status = self.raw.borrow_dependent().response_status.value();
         let attr = if status == SUCCESSFUL_RESPONSE {
             "SUCCESSFUL"
-        } else if status == MALFORMED_REQUEST_RESPOSNE {
+        } else if status == MALFORMED_REQUEST_RESPONSE {
             "MALFORMED_REQUEST"
         } else if status == INTERNAL_ERROR_RESPONSE {
             "INTERNAL_ERROR"
@@ -179,8 +179,24 @@ impl OCSPResponse {
         &self,
         py: pyo3::Python<'p>,
     ) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+        let warning_cls = types::DEPRECATED_IN_43.get(py)?;
+        pyo3::PyErr::warn_bound(
+                py,
+                &warning_cls,
+                "Properties that return a naïve datetime object have been deprecated. Please switch to produced_at_utc.",
+                1,
+            )?;
         let resp = self.requires_successful_response()?;
         x509::datetime_to_py(py, resp.tbs_response_data.produced_at.as_datetime())
+    }
+
+    #[getter]
+    fn produced_at_utc<'p>(
+        &self,
+        py: pyo3::Python<'p>,
+    ) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+        let resp = self.requires_successful_response()?;
+        x509::datetime_to_py_utc(py, resp.tbs_response_data.produced_at.as_datetime())
     }
 
     #[getter]
@@ -203,14 +219,14 @@ impl OCSPResponse {
         match hash_alg {
             Ok(data) => Ok(data),
             Err(_) => {
-                let exc_messsage = format!(
+                let exc_message = format!(
                     "Signature algorithm OID: {} not recognized",
                     self.requires_successful_response()?
                         .signature_algorithm
                         .oid()
                 );
                 Err(CryptographyError::from(
-                    exceptions::UnsupportedAlgorithm::new_err(exc_messsage),
+                    exceptions::UnsupportedAlgorithm::new_err(exc_message),
                 ))
             }
         }
@@ -325,9 +341,26 @@ impl OCSPResponse {
         &self,
         py: pyo3::Python<'p>,
     ) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+        let warning_cls = types::DEPRECATED_IN_43.get(py)?;
+        pyo3::PyErr::warn_bound(
+                py,
+                &warning_cls,
+                "Properties that return a naïve datetime object have been deprecated. Please switch to revocation_time_utc.",
+                1,
+            )?;
         let resp = self.requires_successful_response()?;
         let single_resp = single_response(resp)?;
         singleresp_py_revocation_time(&single_resp, py)
+    }
+
+    #[getter]
+    fn revocation_time_utc<'p>(
+        &self,
+        py: pyo3::Python<'p>,
+    ) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+        let resp = self.requires_successful_response()?;
+        let single_resp = single_response(resp)?;
+        singleresp_py_revocation_time_utc(&single_resp, py)
     }
 
     #[getter]
@@ -345,9 +378,26 @@ impl OCSPResponse {
         &self,
         py: pyo3::Python<'p>,
     ) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+        let warning_cls = types::DEPRECATED_IN_43.get(py)?;
+        pyo3::PyErr::warn_bound(
+                py,
+                &warning_cls,
+                "Properties that return a naïve datetime object have been deprecated. Please switch to this_update_utc.",
+                1,
+            )?;
         let resp = self.requires_successful_response()?;
         let single_resp = single_response(resp)?;
         singleresp_py_this_update(&single_resp, py)
+    }
+
+    #[getter]
+    fn this_update_utc<'p>(
+        &self,
+        py: pyo3::Python<'p>,
+    ) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+        let resp = self.requires_successful_response()?;
+        let single_resp = single_response(resp)?;
+        singleresp_py_this_update_utc(&single_resp, py)
     }
 
     #[getter]
@@ -355,9 +405,26 @@ impl OCSPResponse {
         &self,
         py: pyo3::Python<'p>,
     ) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+        let warning_cls = types::DEPRECATED_IN_43.get(py)?;
+        pyo3::PyErr::warn_bound(
+                py,
+                &warning_cls,
+                "Properties that return a naïve datetime object have been deprecated. Please switch to next_update_utc.",
+                1,
+            )?;
         let resp = self.requires_successful_response()?;
         let single_resp = single_response(resp)?;
         singleresp_py_next_update(&single_resp, py)
+    }
+
+    #[getter]
+    fn next_update_utc<'p>(
+        &self,
+        py: pyo3::Python<'p>,
+    ) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+        let resp = self.requires_successful_response()?;
+        let single_resp = single_response(resp)?;
+        singleresp_py_next_update_utc(&single_resp, py)
     }
 
     #[getter]
@@ -549,12 +616,29 @@ fn singleresp_py_this_update<'p>(
     x509::datetime_to_py(py, resp.this_update.as_datetime())
 }
 
+fn singleresp_py_this_update_utc<'p>(
+    resp: &ocsp_resp::SingleResponse<'_>,
+    py: pyo3::Python<'p>,
+) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+    x509::datetime_to_py_utc(py, resp.this_update.as_datetime())
+}
+
 fn singleresp_py_next_update<'p>(
     resp: &ocsp_resp::SingleResponse<'_>,
     py: pyo3::Python<'p>,
 ) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
     match &resp.next_update {
         Some(v) => x509::datetime_to_py(py, v.as_datetime()),
+        None => Ok(py.None().into_bound(py)),
+    }
+}
+
+fn singleresp_py_next_update_utc<'p>(
+    resp: &ocsp_resp::SingleResponse<'_>,
+    py: pyo3::Python<'p>,
+) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+    match &resp.next_update {
+        Some(v) => x509::datetime_to_py_utc(py, v.as_datetime()),
         None => Ok(py.None().into_bound(py)),
     }
 }
@@ -588,7 +672,21 @@ fn singleresp_py_revocation_time<'p>(
     }
 }
 
-#[pyo3::prelude::pyfunction]
+fn singleresp_py_revocation_time_utc<'p>(
+    resp: &ocsp_resp::SingleResponse<'_>,
+    py: pyo3::Python<'p>,
+) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+    match &resp.cert_status {
+        ocsp_resp::CertStatus::Revoked(revoked_info) => {
+            x509::datetime_to_py_utc(py, revoked_info.revocation_time.as_datetime())
+        }
+        ocsp_resp::CertStatus::Good(_) | ocsp_resp::CertStatus::Unknown(_) => {
+            Ok(py.None().into_bound(py))
+        }
+    }
+}
+
+#[pyo3::pyfunction]
 fn create_ocsp_response(
     py: pyo3::Python<'_>,
     status: &pyo3::Bound<'_, pyo3::PyAny>,
@@ -778,18 +876,6 @@ fn create_ocsp_response(
     load_der_ocsp_response(py, pyo3::types::PyBytes::new_bound(py, &data).unbind())
 }
 
-pub(crate) fn add_to_module(
-    module: &pyo3::Bound<'_, pyo3::prelude::PyModule>,
-) -> pyo3::PyResult<()> {
-    module.add_function(pyo3::wrap_pyfunction_bound!(
-        load_der_ocsp_response,
-        module
-    )?)?;
-    module.add_function(pyo3::wrap_pyfunction_bound!(create_ocsp_response, module)?)?;
-
-    Ok(())
-}
-
 type RawOCSPResponseIterator<'a> = asn1::SequenceOf<'a, SingleResponse<'a>>;
 
 self_cell::self_cell!(
@@ -800,12 +886,12 @@ self_cell::self_cell!(
     }
 );
 
-#[pyo3::prelude::pyclass(module = "cryptography.hazmat.bindings._rust.ocsp")]
+#[pyo3::pyclass(module = "cryptography.hazmat.bindings._rust.ocsp")]
 struct OCSPResponseIterator {
     contents: OwnedOCSPResponseIteratorData,
 }
 
-#[pyo3::prelude::pymethods]
+#[pyo3::pymethods]
 impl OCSPResponseIterator {
     fn __iter__(slf: pyo3::PyRef<'_, Self>) -> pyo3::PyRef<'_, Self> {
         slf
@@ -832,7 +918,7 @@ self_cell::self_cell!(
     }
 );
 
-#[pyo3::prelude::pyclass(frozen, module = "cryptography.hazmat.bindings._rust.ocsp")]
+#[pyo3::pyclass(frozen, module = "cryptography.hazmat.bindings._rust.ocsp")]
 struct OCSPSingleResponse {
     raw: OwnedSingleResponse,
 }
@@ -843,7 +929,7 @@ impl OCSPSingleResponse {
     }
 }
 
-#[pyo3::prelude::pymethods]
+#[pyo3::pymethods]
 impl OCSPSingleResponse {
     #[getter]
     fn serial_number<'p>(
@@ -888,8 +974,24 @@ impl OCSPSingleResponse {
         &self,
         py: pyo3::Python<'p>,
     ) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+        let warning_cls = types::DEPRECATED_IN_43.get(py)?;
+        pyo3::PyErr::warn_bound(
+                py,
+                &warning_cls,
+                "Properties that return a naïve datetime object have been deprecated. Please switch to revocation_time_utc.",
+                1,
+            )?;
         let single_resp = self.single_response();
         singleresp_py_revocation_time(single_resp, py)
+    }
+
+    #[getter]
+    fn revocation_time_utc<'p>(
+        &self,
+        py: pyo3::Python<'p>,
+    ) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+        let single_resp = self.single_response();
+        singleresp_py_revocation_time_utc(single_resp, py)
     }
 
     #[getter]
@@ -906,8 +1008,24 @@ impl OCSPSingleResponse {
         &self,
         py: pyo3::Python<'p>,
     ) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+        let warning_cls = types::DEPRECATED_IN_43.get(py)?;
+        pyo3::PyErr::warn_bound(
+                py,
+                &warning_cls,
+                "Properties that return a naïve datetime object have been deprecated. Please switch to this_update_utc.",
+                1,
+            )?;
         let single_resp = self.single_response();
         singleresp_py_this_update(single_resp, py)
+    }
+
+    #[getter]
+    fn this_update_utc<'p>(
+        &self,
+        py: pyo3::Python<'p>,
+    ) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+        let single_resp = self.single_response();
+        singleresp_py_this_update_utc(single_resp, py)
     }
 
     #[getter]
@@ -915,7 +1033,36 @@ impl OCSPSingleResponse {
         &self,
         py: pyo3::Python<'p>,
     ) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+        let warning_cls = types::DEPRECATED_IN_43.get(py)?;
+        pyo3::PyErr::warn_bound(
+                py,
+                &warning_cls,
+                "Properties that return a naïve datetime object have been deprecated. Please switch to next_update_utc.",
+                1,
+            )?;
         let single_resp = self.single_response();
         singleresp_py_next_update(single_resp, py)
     }
+
+    #[getter]
+    fn next_update_utc<'p>(
+        &self,
+        py: pyo3::Python<'p>,
+    ) -> pyo3::PyResult<pyo3::Bound<'p, pyo3::PyAny>> {
+        let single_resp = self.single_response();
+        singleresp_py_next_update_utc(single_resp, py)
+    }
+}
+
+pub(crate) fn add_to_module(module: &pyo3::Bound<'_, pyo3::types::PyModule>) -> pyo3::PyResult<()> {
+    module.add_function(pyo3::wrap_pyfunction_bound!(
+        load_der_ocsp_response,
+        module
+    )?)?;
+    module.add_function(pyo3::wrap_pyfunction_bound!(create_ocsp_response, module)?)?;
+
+    module.add_class::<OCSPResponse>()?;
+    module.add_class::<OCSPSingleResponse>()?;
+
+    Ok(())
 }

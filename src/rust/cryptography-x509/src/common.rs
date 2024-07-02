@@ -125,6 +125,14 @@ pub enum AlgorithmParameters<'a> {
     #[defined_by(oid::DH_KEY_AGREEMENT_OID)]
     DhKeyAgreement(BasicDHParams<'a>),
 
+    #[defined_by(oid::HMAC_WITH_SHA1_OID)]
+    HmacWithSha1(asn1::Null),
+    #[defined_by(oid::HMAC_WITH_SHA256_OID)]
+    HmacWithSha256(asn1::Null),
+
+    #[defined_by(oid::AES_256_CBC_OID)]
+    Aes256Cbc([u8; 16]),
+
     #[default]
     Other(asn1::ObjectIdentifier, Option<asn1::Tlv<'a>>),
 }
@@ -367,9 +375,18 @@ pub struct RsaPssParameters<'a> {
     #[explicit(2)]
     #[default(20u16)]
     pub salt_length: u16,
+    // While the RFC describes this field as `DEFAULT 1`, it also states that
+    // parsers must accept this field being encoded with a value of 1, in
+    // conflict with DER's requirement that field DEFAULT values not be
+    // encoded. Thus we just treat this as an optional field.
+    //
+    // Users of this struct should supply `None` to indicate the DEFAULT value
+    // of 1, or `Some` to indicate a different value. Note that if you supply
+    // `Some(1)` this will result in encoding a violation of the DER rules,
+    // thus this should never be done except to round-trip an existing
+    // structure.
     #[explicit(3)]
-    #[default(1u8)]
-    pub _trailer_field: u8,
+    pub _trailer_field: Option<u8>,
 }
 
 // https://datatracker.ietf.org/doc/html/rfc3279#section-2.3.2

@@ -11,7 +11,7 @@ use cryptography_x509_verification::{
     trust_store::Store,
     types::{DNSName, IPAddress},
 };
-use pyo3::prelude::{PyAnyMethods, PyListMethods, PyModuleMethods};
+use pyo3::types::{PyAnyMethods, PyListMethods, PyModuleMethods};
 
 use crate::backend::keys;
 use crate::error::{CryptographyError, CryptographyResult};
@@ -260,21 +260,29 @@ impl PyClientVerifier {
         let policy = self.as_policy();
         let store = self.store.get();
 
-        let chain = cryptography_x509_verification::verify(
-            &VerificationCertificate::new(
-                leaf.get().raw.borrow_dependent().clone(),
-                leaf.clone_ref(py),
-            ),
-            intermediates.iter().map(|i| {
+        let intermediates = intermediates
+            .iter()
+            .map(|i| {
                 VerificationCertificate::new(
                     i.get().raw.borrow_dependent().clone(),
                     i.clone_ref(py),
                 )
-            }),
+            })
+            .collect::<Vec<_>>();
+        let intermediate_refs = intermediates.iter().collect::<Vec<_>>();
+
+        let v = VerificationCertificate::new(
+            leaf.get().raw.borrow_dependent().clone(),
+            leaf.clone_ref(py),
+        );
+
+        let chain = cryptography_x509_verification::verify(
+            &v,
+            &intermediate_refs,
             policy,
             store.raw.borrow_dependent(),
         )
-        .map_err(|e| VerificationError::new_err(format!("validation failed: {e:?}")))?;
+        .map_err(|e| VerificationError::new_err(format!("validation failed: {e}")))?;
 
         let py_chain = pyo3::types::PyList::empty_bound(py);
         for c in &chain {
@@ -344,17 +352,25 @@ impl PyServerVerifier {
         let policy = self.as_policy();
         let store = self.store.get();
 
-        let chain = cryptography_x509_verification::verify(
-            &VerificationCertificate::new(
-                leaf.get().raw.borrow_dependent().clone(),
-                leaf.clone_ref(py),
-            ),
-            intermediates.iter().map(|i| {
+        let intermediates = intermediates
+            .iter()
+            .map(|i| {
                 VerificationCertificate::new(
                     i.get().raw.borrow_dependent().clone(),
                     i.clone_ref(py),
                 )
-            }),
+            })
+            .collect::<Vec<_>>();
+        let intermediate_refs = intermediates.iter().collect::<Vec<_>>();
+
+        let v = VerificationCertificate::new(
+            leaf.get().raw.borrow_dependent().clone(),
+            leaf.clone_ref(py),
+        );
+
+        let chain = cryptography_x509_verification::verify(
+            &v,
+            &intermediate_refs,
             policy,
             store.raw.borrow_dependent(),
         )

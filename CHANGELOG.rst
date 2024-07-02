@@ -15,6 +15,8 @@ Changelog
 * :func:`~cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key`
   now enforces a minimum RSA key size of 1024-bit. Note that 1024-bit is still
   considered insecure, users should generally use a key size of 2048-bits.
+* :func:`~cryptography.hazmat.primitives.serialization.pkcs7.serialize_certificates`
+  now emits ASN.1 that more closely follows the recommendations in :rfc:`2315`.
 * Added new :doc:`/hazmat/decrepit/index` module which contains outdated and
   insecure cryptographic primitives.
   :class:`~cryptography.hazmat.primitives.ciphers.algorithms.CAST5`,
@@ -46,6 +48,23 @@ Changelog
   :attr:`~cryptography.x509.InvalidityDate.invalidity_date`.
 * Added support for parsing empty DN string in
   :meth:`~cryptography.x509.Name.from_rfc4514_string`.
+* Added the following properties that return timezone-aware ``datetime`` objects:
+  :meth:`~cryptography.x509.ocsp.OCSPResponse.produced_at_utc`,
+  :meth:`~cryptography.x509.ocsp.OCSPResponse.revocation_time_utc`,
+  :meth:`~cryptography.x509.ocsp.OCSPResponse.this_update_utc`,
+  :meth:`~cryptography.x509.ocsp.OCSPResponse.next_update_utc`,
+  :meth:`~cryptography.x509.ocsp.OCSPSingleResponse.revocation_time_utc`,
+  :meth:`~cryptography.x509.ocsp.OCSPSingleResponse.this_update_utc`,
+  :meth:`~cryptography.x509.ocsp.OCSPSingleResponse.next_update_utc`,
+  These are timezone-aware variants of existing properties that return naïve
+  ``datetime`` objects.
+
+.. _v42-0-8:
+
+42.0.8 - 2024-06-04
+~~~~~~~~~~~~~~~~~~~
+
+* Updated Windows, macOS, and Linux wheels to be compiled with OpenSSL 3.2.2.
 
 .. _v42-0-7:
 

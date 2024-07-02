@@ -8,26 +8,27 @@ use crate::asn1::encode_der_data;
 use crate::backend::utils;
 use crate::error::{CryptographyError, CryptographyResult};
 use crate::{types, x509};
-use pyo3::prelude::{PyAnyMethods, PyModuleMethods};
+use pyo3::types::{PyAnyMethods, PyModuleMethods};
 
 const MIN_MODULUS_SIZE: u32 = 512;
 
-#[pyo3::prelude::pyclass(frozen, module = "cryptography.hazmat.bindings._rust.openssl.dh")]
+#[pyo3::pyclass(frozen, module = "cryptography.hazmat.bindings._rust.openssl.dh")]
 pub(crate) struct DHPrivateKey {
     pkey: openssl::pkey::PKey<openssl::pkey::Private>,
 }
 
-#[pyo3::prelude::pyclass(frozen, module = "cryptography.hazmat.bindings._rust.openssl.dh")]
+#[pyo3::pyclass(frozen, module = "cryptography.hazmat.bindings._rust.openssl.dh")]
 pub(crate) struct DHPublicKey {
     pkey: openssl::pkey::PKey<openssl::pkey::Public>,
 }
 
-#[pyo3::prelude::pyclass(frozen, module = "cryptography.hazmat.bindings._rust.openssl.dh")]
+#[pyo3::pyclass(frozen, module = "cryptography.hazmat.bindings._rust.openssl.dh")]
 struct DHParameters {
     dh: openssl::dh::Dh<openssl::pkey::Params>,
 }
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
+#[pyo3(signature = (generator, key_size, backend=None))]
 fn generate_parameters(
     generator: u32,
     key_size: u32,
@@ -86,7 +87,8 @@ fn pkey_from_dh<T: openssl::pkey::HasParams>(
     }
 }
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
+#[pyo3(signature = (data, backend=None))]
 fn from_der_parameters(
     data: &[u8],
     backend: Option<pyo3::Bound<'_, pyo3::PyAny>>,
@@ -106,7 +108,8 @@ fn from_der_parameters(
     })
 }
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
+#[pyo3(signature = (data, backend=None))]
 fn from_pem_parameters(
     data: &[u8],
     backend: Option<pyo3::Bound<'_, pyo3::PyAny>>,
@@ -145,7 +148,7 @@ fn clone_dh<T: openssl::pkey::HasParams>(
     Ok(openssl::dh::Dh::from_pqg(p, q, g)?)
 }
 
-#[pyo3::prelude::pymethods]
+#[pyo3::pymethods]
 impl DHPrivateKey {
     #[getter]
     fn key_size(&self) -> i32 {
@@ -250,7 +253,7 @@ impl DHPrivateKey {
     }
 }
 
-#[pyo3::prelude::pymethods]
+#[pyo3::pymethods]
 impl DHPublicKey {
     #[getter]
     fn key_size(&self) -> i32 {
@@ -313,7 +316,7 @@ impl DHPublicKey {
     }
 }
 
-#[pyo3::prelude::pymethods]
+#[pyo3::pymethods]
 impl DHParameters {
     #[cfg(not(CRYPTOGRAPHY_IS_BORINGSSL))]
     fn generate_private_key(&self) -> CryptographyResult<DHPrivateKey> {
@@ -373,7 +376,7 @@ impl DHParameters {
     }
 }
 
-#[pyo3::prelude::pyclass(frozen, module = "cryptography.hazmat.primitives.asymmetric.dh")]
+#[pyo3::pyclass(frozen, module = "cryptography.hazmat.primitives.asymmetric.dh")]
 struct DHPrivateNumbers {
     #[pyo3(get)]
     x: pyo3::Py<pyo3::types::PyLong>,
@@ -381,7 +384,7 @@ struct DHPrivateNumbers {
     public_numbers: pyo3::Py<DHPublicNumbers>,
 }
 
-#[pyo3::prelude::pyclass(frozen, module = "cryptography.hazmat.primitives.asymmetric.dh")]
+#[pyo3::pyclass(frozen, module = "cryptography.hazmat.primitives.asymmetric.dh")]
 struct DHPublicNumbers {
     #[pyo3(get)]
     y: pyo3::Py<pyo3::types::PyLong>,
@@ -389,7 +392,7 @@ struct DHPublicNumbers {
     parameter_numbers: pyo3::Py<DHParameterNumbers>,
 }
 
-#[pyo3::prelude::pyclass(frozen, module = "cryptography.hazmat.primitives.asymmetric.dh")]
+#[pyo3::pyclass(frozen, module = "cryptography.hazmat.primitives.asymmetric.dh")]
 struct DHParameterNumbers {
     #[pyo3(get)]
     p: pyo3::Py<pyo3::types::PyLong>,
@@ -399,7 +402,7 @@ struct DHParameterNumbers {
     q: Option<pyo3::Py<pyo3::types::PyLong>>,
 }
 
-#[pyo3::prelude::pymethods]
+#[pyo3::pymethods]
 impl DHPrivateNumbers {
     #[new]
     fn new(
@@ -410,6 +413,7 @@ impl DHPrivateNumbers {
     }
 
     #[cfg(not(CRYPTOGRAPHY_IS_BORINGSSL))]
+    #[pyo3(signature = (backend=None))]
     fn private_key(
         &self,
         py: pyo3::Python<'_>,
@@ -448,7 +452,7 @@ impl DHPrivateNumbers {
     }
 }
 
-#[pyo3::prelude::pymethods]
+#[pyo3::pymethods]
 impl DHPublicNumbers {
     #[new]
     fn new(
@@ -462,6 +466,7 @@ impl DHPublicNumbers {
     }
 
     #[cfg(not(CRYPTOGRAPHY_IS_BORINGSSL))]
+    #[pyo3(signature = (backend=None))]
     fn public_key(
         &self,
         py: pyo3::Python<'_>,
@@ -491,9 +496,10 @@ impl DHPublicNumbers {
     }
 }
 
-#[pyo3::prelude::pymethods]
+#[pyo3::pymethods]
 impl DHParameterNumbers {
     #[new]
+    #[pyo3(signature = (p, g, q=None))]
     fn new(
         py: pyo3::Python<'_>,
         p: pyo3::Py<pyo3::types::PyLong>,
@@ -520,6 +526,7 @@ impl DHParameterNumbers {
         Ok(DHParameterNumbers { p, g, q })
     }
 
+    #[pyo3(signature = (backend=None))]
     fn parameters(
         &self,
         py: pyo3::Python<'_>,
@@ -549,8 +556,8 @@ impl DHParameterNumbers {
 
 pub(crate) fn create_module(
     py: pyo3::Python<'_>,
-) -> pyo3::PyResult<pyo3::Bound<'_, pyo3::prelude::PyModule>> {
-    let m = pyo3::prelude::PyModule::new_bound(py, "dh")?;
+) -> pyo3::PyResult<pyo3::Bound<'_, pyo3::types::PyModule>> {
+    let m = pyo3::types::PyModule::new_bound(py, "dh")?;
     m.add_function(pyo3::wrap_pyfunction_bound!(generate_parameters, &m)?)?;
     m.add_function(pyo3::wrap_pyfunction_bound!(from_der_parameters, &m)?)?;
     m.add_function(pyo3::wrap_pyfunction_bound!(from_pem_parameters, &m)?)?;

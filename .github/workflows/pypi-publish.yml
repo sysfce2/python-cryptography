@@ -39,7 +39,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Get publish-requirements.txt from repository
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: |
             ${{ env.PUBLISH_REQUIREMENTS_PATH }}
@@ -48,7 +48,7 @@ jobs:
       - name: Install Python dependencies
         run: pip install --require-hashes -r ${{ env.PUBLISH_REQUIREMENTS_PATH }}
 
-      - uses: dawidd6/action-download-artifact@09f2f74827fd3a8607589e5ad7f9398816f540fe # v3.1.4
+      - uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11 # v6
         with:
           path: dist/
           run_id: ${{ github.event.inputs.run_id || github.event.workflow_run.id }}
@@ -93,7 +93,7 @@ jobs:
       # Do not perform attestation for things for TestPyPI. This is because
       # there's nothing that would prevent a malicious PyPI from serving a
       # signed TestPyPI asset in place of a release intended for PyPI.
-      - uses: actions/attest-build-provenance@173725a1209d09b31f9d30a3890cf2757ebbff0d  # v1.1.2
+      - uses: actions/attest-build-provenance@bdd51370e0416ac948727f861e03c2f05d32d78e  # v1.3.2
         with:
           subject-path: 'dist/**/cryptography*'
         if: env.TWINE_REPOSITORY == 'pypi'

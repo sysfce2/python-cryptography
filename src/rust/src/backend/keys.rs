@@ -2,7 +2,7 @@
 // 2.0, and the BSD License. See the LICENSE file in the root of this repository
 // for complete details.
 
-use pyo3::prelude::PyModuleMethods;
+use pyo3::types::PyModuleMethods;
 use pyo3::IntoPy;
 
 use crate::backend::utils;
@@ -10,7 +10,7 @@ use crate::buf::CffiBuf;
 use crate::error::{CryptographyError, CryptographyResult};
 use crate::exceptions;
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
 #[pyo3(signature = (data, password, backend=None, *, unsafe_skip_rsa_key_validation=false))]
 fn load_der_private_key(
     py: pyo3::Python<'_>,
@@ -41,7 +41,7 @@ fn load_der_private_key(
     private_key_from_pkey(py, &pkey, unsafe_skip_rsa_key_validation)
 }
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
 #[pyo3(signature = (data, password, backend=None, *, unsafe_skip_rsa_key_validation=false))]
 fn load_pem_private_key(
     py: pyo3::Python<'_>,
@@ -116,7 +116,8 @@ pub(crate) fn private_key_from_pkey(
     }
 }
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
+#[pyo3(signature = (data, backend=None))]
 fn load_der_public_key(
     py: pyo3::Python<'_>,
     data: CffiBuf<'_>,
@@ -144,7 +145,8 @@ pub(crate) fn load_der_public_key_bytes(
     }
 }
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
+#[pyo3(signature = (data, backend=None))]
 fn load_pem_public_key(
     py: pyo3::Python<'_>,
     data: CffiBuf<'_>,
@@ -174,7 +176,9 @@ fn load_pem_public_key(
             }
         }
         "PUBLIC KEY" => cryptography_key_parsing::spki::parse_public_key(p.contents())?,
-        _ => return Err(CryptographyError::from(pem::PemError::MalformedFraming)),
+        _ => return Err(CryptographyError::from(pyo3::exceptions::PyValueError::new_err(
+            "Valid PEM but no BEGIN PUBLIC KEY/END PUBLIC KEY delimiters. Are you sure this is a public key?"
+        ))),
     };
     public_key_from_pkey(py, &pkey, pkey.id())
 }
@@ -219,8 +223,8 @@ fn public_key_from_pkey(
 
 pub(crate) fn create_module(
     py: pyo3::Python<'_>,
-) -> pyo3::PyResult<pyo3::Bound<'_, pyo3::prelude::PyModule>> {
-    let m = pyo3::prelude::PyModule::new_bound(py, "keys")?;
+) -> pyo3::PyResult<pyo3::Bound<'_, pyo3::types::PyModule>> {
+    let m = pyo3::types::PyModule::new_bound(py, "keys")?;
 
     m.add_function(pyo3::wrap_pyfunction_bound!(load_pem_private_key, &m)?)?;
     m.add_function(pyo3::wrap_pyfunction_bound!(load_der_private_key, &m)?)?;

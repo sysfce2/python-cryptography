@@ -11,7 +11,7 @@ use cryptography_x509::{common, oid, pkcs7};
 use once_cell::sync::Lazy;
 #[cfg(not(CRYPTOGRAPHY_IS_BORINGSSL))]
 use openssl::pkcs7::Pkcs7;
-use pyo3::prelude::{PyAnyMethods, PyBytesMethods, PyListMethods, PyModuleMethods};
+use pyo3::types::{PyAnyMethods, PyBytesMethods, PyListMethods, PyModuleMethods};
 #[cfg(not(CRYPTOGRAPHY_IS_BORINGSSL))]
 use pyo3::IntoPy;
 
@@ -27,10 +27,6 @@ const PKCS7_MESSAGE_DIGEST_OID: asn1::ObjectIdentifier = asn1::oid!(1, 2, 840, 1
 const PKCS7_SIGNING_TIME_OID: asn1::ObjectIdentifier = asn1::oid!(1, 2, 840, 113549, 1, 9, 5);
 const PKCS7_SMIME_CAP_OID: asn1::ObjectIdentifier = asn1::oid!(1, 2, 840, 113549, 1, 9, 15);
 
-const AES_256_CBC_OID: asn1::ObjectIdentifier = asn1::oid!(2, 16, 840, 1, 101, 3, 4, 1, 42);
-const AES_192_CBC_OID: asn1::ObjectIdentifier = asn1::oid!(2, 16, 840, 1, 101, 3, 4, 1, 22);
-const AES_128_CBC_OID: asn1::ObjectIdentifier = asn1::oid!(2, 16, 840, 1, 101, 3, 4, 1, 2);
-
 static OIDS_TO_MIC_NAME: Lazy<HashMap<&asn1::ObjectIdentifier, &str>> = Lazy::new(|| {
     let mut h = HashMap::new();
     h.insert(&oid::SHA224_OID, "sha-224");
@@ -40,7 +36,7 @@ static OIDS_TO_MIC_NAME: Lazy<HashMap<&asn1::ObjectIdentifier, &str>> = Lazy::ne
     h
 });
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
 fn serialize_certificates<'p>(
     py: pyo3::Python<'p>,
     py_certs: Vec<pyo3::PyRef<'p, x509::certificate::Certificate>>,
@@ -63,7 +59,7 @@ fn serialize_certificates<'p>(
         digest_algorithms: asn1::SetOfWriter::new(&[]),
         content_info: pkcs7::ContentInfo {
             _content_type: asn1::DefinedByMarker::marker(),
-            content: pkcs7::Content::Data(Some(asn1::Explicit::new(b""))),
+            content: pkcs7::Content::Data(None),
         },
         certificates: Some(asn1::SetOfWriter::new(&raw_certs)),
         crls: None,
@@ -79,7 +75,7 @@ fn serialize_certificates<'p>(
     encode_der_data(py, "PKCS7".to_string(), content_info_bytes, encoding)
 }
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
 fn sign_and_serialize<'p>(
     py: pyo3::Python<'p>,
     builder: &pyo3::Bound<'p, pyo3::PyAny>,
@@ -105,9 +101,9 @@ fn sign_and_serialize<'p>(
         // Subset of values OpenSSL provides:
         // https://github.com/openssl/openssl/blob/667a8501f0b6e5705fd611d5bb3ca24848b07154/crypto/pkcs7/pk7_smime.c#L150
         // removing all the ones that are bad cryptography
-        &asn1::SequenceOfWriter::new([AES_256_CBC_OID]),
-        &asn1::SequenceOfWriter::new([AES_192_CBC_OID]),
-        &asn1::SequenceOfWriter::new([AES_128_CBC_OID]),
+        &asn1::SequenceOfWriter::new([oid::AES_256_CBC_OID]),
+        &asn1::SequenceOfWriter::new([oid::AES_192_CBC_OID]),
+        &asn1::SequenceOfWriter::new([oid::AES_128_CBC_OID]),
     ]))?;
 
     #[allow(clippy::type_complexity)]
@@ -359,7 +355,7 @@ fn load_pkcs7_certificates(
     }
 }
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
 fn load_pem_pkcs7_certificates<'p>(
     py: pyo3::Python<'p>,
     data: &[u8],
@@ -385,7 +381,7 @@ fn load_pem_pkcs7_certificates<'p>(
     }
 }
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
 fn load_der_pkcs7_certificates<'p>(
     py: pyo3::Python<'p>,
     data: &[u8],
@@ -413,8 +409,8 @@ fn load_der_pkcs7_certificates<'p>(
 
 pub(crate) fn create_submodule(
     py: pyo3::Python<'_>,
-) -> pyo3::PyResult<pyo3::Bound<'_, pyo3::prelude::PyModule>> {
-    let submod = pyo3::prelude::PyModule::new_bound(py, "pkcs7")?;
+) -> pyo3::PyResult<pyo3::Bound<'_, pyo3::types::PyModule>> {
+    let submod = pyo3::types::PyModule::new_bound(py, "pkcs7")?;
 
     submod.add_function(pyo3::wrap_pyfunction_bound!(
         serialize_certificates,

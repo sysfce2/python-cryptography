@@ -2,7 +2,7 @@
 // 2.0, and the BSD License. See the LICENSE file in the root of this repository
 // for complete details.
 
-use pyo3::prelude::PyAnyMethods;
+use pyo3::types::PyAnyMethods;
 
 pub struct LazyPyImport {
     module: &'static str,
@@ -28,7 +28,7 @@ impl LazyPyImport {
             Ok::<_, pyo3::PyErr>(obj.unbind())
         })?;
 
-        Ok(p.clone().into_bound(py))
+        Ok(p.clone_ref(py).into_bound(py))
     }
 }
 
@@ -45,6 +45,8 @@ pub static DEPRECATED_IN_41: LazyPyImport =
     LazyPyImport::new("cryptography.utils", &["DeprecatedIn41"]);
 pub static DEPRECATED_IN_42: LazyPyImport =
     LazyPyImport::new("cryptography.utils", &["DeprecatedIn42"]);
+pub static DEPRECATED_IN_43: LazyPyImport =
+    LazyPyImport::new("cryptography.utils", &["DeprecatedIn43"]);
 
 pub static ENCODING: LazyPyImport = LazyPyImport::new(
     "cryptography.hazmat.primitives.serialization",

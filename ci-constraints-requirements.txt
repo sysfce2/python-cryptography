@@ -7,7 +7,7 @@
 
 alabaster==0.7.16
     # via sphinx
-argcomplete==3.3.0; python_version >= "3.8"
+argcomplete==3.4.0; python_version >= "3.8"
     # via nox
 babel==2.15.0
     # via sphinx
@@ -15,7 +15,7 @@ build==1.2.1
     # via
     #   check-sdist
     #   cryptography (pyproject.toml)
-certifi==2024.2.2
+certifi==2024.6.2
     # via requests
 charset-normalizer==3.3.2
     # via requests
@@ -25,7 +25,7 @@ click==8.1.7
     # via cryptography (pyproject.toml)
 colorlog==6.8.2
     # via nox
-coverage==7.5.1; python_version >= "3.8"
+coverage==7.5.4; python_version >= "3.8"
     # via
     #   coverage
     #   pytest-cov
@@ -40,7 +40,7 @@ exceptiongroup==1.2.1
     # via pytest
 execnet==2.1.1; python_version >= "3.8"
     # via pytest-xdist
-filelock==3.14.0; python_version >= "3.8"
+filelock==3.15.4; python_version >= "3.8"
     # via virtualenv
 idna==3.7
     # via requests
@@ -52,7 +52,7 @@ jinja2==3.1.4
     # via sphinx
 markupsafe==2.1.5
     # via jinja2
-mypy==1.10.0
+mypy==1.10.1
     # via cryptography (pyproject.toml)
 mypy-extensions==1.0.0
     # via mypy
@@ -60,7 +60,7 @@ nh3==0.2.17
     # via readme-renderer
 nox==2024.4.15
     # via cryptography (pyproject.toml)
-packaging==24.0
+packaging==24.1; python_version >= "3.8"
     # via
     #   build
     #   nox
@@ -86,7 +86,7 @@ pygments==2.18.0
     #   sphinx
 pyproject-hooks==1.1.0
     # via build
-pytest==8.2.1; python_version >= "3.8"
+pytest==8.2.2; python_version >= "3.8"
     # via
     #   cryptography (pyproject.toml)
     #   pytest-benchmark
@@ -103,9 +103,9 @@ pytest-xdist==3.6.1; python_version >= "3.8"
     # via cryptography (pyproject.toml)
 readme-renderer==43.0
     # via cryptography (pyproject.toml)
-requests==2.32.2
+requests==2.32.3
     # via sphinx
-ruff==0.4.5
+ruff==0.5.0
     # via cryptography (pyproject.toml)
 snowballstemmer==2.2.0
     # via sphinx
@@ -146,11 +146,11 @@ tomli==2.0.1
     #   mypy
     #   pyproject-hooks
     #   pytest
-typing-extensions==4.12.0; python_version >= "3.8"
+typing-extensions==4.12.2; python_version >= "3.8"
     # via mypy
-urllib3==2.2.1
+urllib3==2.2.2
     # via requests
-virtualenv==20.26.2
+virtualenv==20.26.3
     # via nox
 
 # The following packages are considered to be unsafe in a requirements file:

@@ -6,8 +6,12 @@ import typing
 
 from cryptography import x509
 from cryptography.hazmat.primitives.asymmetric.types import PrivateKeyTypes
+from cryptography.hazmat.primitives.serialization import (
+    KeySerializationEncryption,
+)
 from cryptography.hazmat.primitives.serialization.pkcs12 import (
     PKCS12KeyAndCertificates,
+    PKCS12PrivateKeyTypes,
 )
 
 class PKCS12Certificate:
@@ -35,6 +39,8 @@ def load_pkcs12(
 ) -> PKCS12KeyAndCertificates: ...
 def serialize_key_and_certificates(
     name: bytes | None,
+    key: PKCS12PrivateKeyTypes | None,
     cert: x509.Certificate | None,
     cas: typing.Iterable[x509.Certificate | PKCS12Certificate] | None,
+    encryption_algorithm: KeySerializationEncryption,
 ) -> bytes: ...

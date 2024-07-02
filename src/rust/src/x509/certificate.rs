@@ -17,7 +17,7 @@ use cryptography_x509::extensions::{
 use cryptography_x509::extensions::{Extension, SubjectAlternativeName};
 use cryptography_x509::{common, oid};
 use cryptography_x509_verification::ops::CryptoOps;
-use pyo3::prelude::{PyAnyMethods, PyListMethods, PyModuleMethods};
+use pyo3::types::{PyAnyMethods, PyListMethods, PyModuleMethods};
 use pyo3::{IntoPy, ToPyObject};
 
 use crate::asn1::{
@@ -38,13 +38,13 @@ self_cell::self_cell!(
     }
 );
 
-#[pyo3::prelude::pyclass(frozen, module = "cryptography.hazmat.bindings._rust.x509")]
+#[pyo3::pyclass(frozen, module = "cryptography.hazmat.bindings._rust.x509")]
 pub(crate) struct Certificate {
     pub(crate) raw: OwnedCertificate,
     pub(crate) cached_extensions: pyo3::sync::GILOnceCell<pyo3::PyObject>,
 }
 
-#[pyo3::prelude::pymethods]
+#[pyo3::pymethods]
 impl Certificate {
     fn __hash__(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
@@ -364,7 +364,8 @@ fn cert_version(
     }
 }
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
+#[pyo3(signature = (data, backend=None))]
 fn load_pem_x509_certificate(
     py: pyo3::Python<'_>,
     data: &[u8],
@@ -386,7 +387,7 @@ fn load_pem_x509_certificate(
     )
 }
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
 fn load_pem_x509_certificates(
     py: pyo3::Python<'_>,
     data: &[u8],
@@ -410,7 +411,8 @@ fn load_pem_x509_certificates(
     Ok(certs)
 }
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
+#[pyo3(signature = (data, backend=None))]
 pub(crate) fn load_der_x509_certificate(
     py: pyo3::Python<'_>,
     data: pyo3::Py<pyo3::types::PyBytes>,
@@ -777,7 +779,7 @@ pub fn parse_cert_ext<'p>(
 
             Ok(Some(types::KEY_USAGE.get(py)?.call1((
                 kus.digital_signature(),
-                kus.content_comitment(),
+                kus.content_commitment(),
                 kus.key_encipherment(),
                 kus.data_encipherment(),
                 kus.key_agreement(),
@@ -883,7 +885,7 @@ pub(crate) fn time_from_datetime(dt: asn1::DateTime) -> CryptographyResult<commo
     }
 }
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
 fn create_x509_certificate(
     py: pyo3::Python<'_>,
     builder: &pyo3::Bound<'_, pyo3::PyAny>,

@@ -8,12 +8,12 @@ use crate::error::CryptographyResult;
 use crate::x509::certificate::Certificate;
 use crate::{types, x509};
 use cryptography_x509::common::Utf8StoredBMPString;
-use pyo3::prelude::{PyAnyMethods, PyBytesMethods, PyListMethods, PyModuleMethods};
+use pyo3::types::{PyAnyMethods, PyBytesMethods, PyListMethods, PyModuleMethods};
 use pyo3::IntoPy;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-#[pyo3::prelude::pyclass(frozen)]
+#[pyo3::pyclass(frozen)]
 struct PKCS12Certificate {
     #[pyo3(get)]
     certificate: pyo3::Py<Certificate>,
@@ -21,9 +21,10 @@ struct PKCS12Certificate {
     friendly_name: Option<pyo3::Py<pyo3::types::PyBytes>>,
 }
 
-#[pyo3::prelude::pymethods]
+#[pyo3::pymethods]
 impl PKCS12Certificate {
     #[new]
+    #[pyo3(signature = (cert, friendly_name=None))]
     fn new(
         cert: pyo3::Py<Certificate>,
         friendly_name: Option<pyo3::Py<pyo3::types::PyBytes>>,
@@ -40,7 +41,7 @@ impl PKCS12Certificate {
         other: pyo3::PyRef<'_, Self>,
     ) -> CryptographyResult<bool> {
         let friendly_name_eq = match (&self.friendly_name, &other.friendly_name) {
-            (Some(a), Some(b)) => a.bind(py).eq(b.bind(py))?,
+            (Some(a), Some(b)) => a.bind(py).as_bytes() == b.bind(py).as_bytes(),
             (None, None) => true,
             _ => false,
         };
@@ -230,13 +231,23 @@ fn cert_to_bag<'a>(
     })
 }
 
-fn decode_encryption_algorithm(
-    py: pyo3::Python<'_>,
-) -> CryptographyResult<(&[u8], pyo3::Bound<'_, pyo3::PyAny>, u64)> {
+fn decode_encryption_algorithm<'a>(
+    py: pyo3::Python<'a>,
+    encryption_algorithm: pyo3::Bound<'a, pyo3::PyAny>,
+) -> CryptographyResult<(
+    pyo3::pybacked::PyBackedBytes,
+    pyo3::Bound<'a, pyo3::PyAny>,
+    u64,
+)> {
     let default_hmac_alg = types::SHA256.get(py)?.call0()?;
     let default_hmac_kdf_iter = 2048;
 
-    Ok((b"", default_hmac_alg, default_hmac_kdf_iter))
+    assert!(encryption_algorithm.is_instance(&types::NO_ENCRYPTION.get(py)?)?);
+    Ok((
+        pyo3::types::PyBytes::new_bound(py, b"").extract()?,
+        default_hmac_alg,
+        default_hmac_kdf_iter,
+    ))
 }
 
 #[derive(pyo3::FromPyObject)]
@@ -245,21 +256,23 @@ enum CertificateOrPKCS12Certificate {
     PKCS12Certificate(pyo3::Py<PKCS12Certificate>),
 }
 
-#[pyo3::prelude::pyfunction]
-#[pyo3(signature = (name, cert, cas))]
+#[pyo3::pyfunction]
+#[pyo3(signature = (name, key, cert, cas, encryption_algorithm))]
 fn serialize_key_and_certificates<'p>(
     py: pyo3::Python<'p>,
     name: Option<&[u8]>,
+    key: Option<pyo3::Bound<'_, pyo3::PyAny>>,
     cert: Option<&Certificate>,
     cas: Option<pyo3::Bound<'_, pyo3::PyAny>>,
+    encryption_algorithm: pyo3::Bound<'_, pyo3::PyAny>,
 ) -> CryptographyResult<pyo3::Bound<'p, pyo3::types::PyBytes>> {
-    let (password, mac_algorithm, mac_kdf_iter) = decode_encryption_algorithm(py)?;
+    let (password, mac_algorithm, mac_kdf_iter) =
+        decode_encryption_algorithm(py, encryption_algorithm)?;
 
     let mut auth_safe_contents = vec![];
-    let cert_bag_contents;
+    let (cert_bag_contents, key_bag_contents);
     let mut ca_certs = vec![];
-    assert!(cert.is_some() || cas.is_some());
-    {
+    if cert.is_some() || cas.is_some() {
         let mut cert_bags = vec![];
 
         if let Some(cert) = cert {
@@ -291,6 +304,35 @@ fn serialize_key_and_certificates<'p>(
             ))),
         });
     }
+
+    if let Some(key) = key {
+        let der = types::ENCODING_DER.get(py)?;
+        let pkcs8 = types::PRIVATE_FORMAT_PKCS8.get(py)?;
+        let no_encryption = types::NO_ENCRYPTION.get(py)?.call0()?;
+
+        let pkcs8_bytes = key
+            .call_method1(
+                pyo3::intern!(py, "private_bytes"),
+                (der, pkcs8, no_encryption),
+            )?
+            .extract::<pyo3::pybacked::PyBackedBytes>()?;
+        let pkcs8_tlv = asn1::parse_single(&pkcs8_bytes)?;
+
+        let key_bag = cryptography_x509::pkcs12::SafeBag {
+            _bag_id: asn1::DefinedByMarker::marker(),
+            bag_value: asn1::Explicit::new(cryptography_x509::pkcs12::BagValue::KeyBag(pkcs8_tlv)),
+            attributes: friendly_name_attributes(name)?,
+        };
+
+        key_bag_contents = asn1::write_single(&asn1::SequenceOfWriter::new([key_bag]))?;
+        auth_safe_contents.push(cryptography_x509::pkcs7::ContentInfo {
+            _content_type: asn1::DefinedByMarker::marker(),
+            content: cryptography_x509::pkcs7::Content::Data(Some(asn1::Explicit::new(
+                &key_bag_contents,
+            ))),
+        });
+    }
+
     let auth_safe_content = asn1::write_single(&asn1::SequenceOfWriter::new(auth_safe_contents))?;
 
     let salt = types::OS_URANDOM
@@ -299,7 +341,7 @@ fn serialize_key_and_certificates<'p>(
         .extract::<pyo3::pybacked::PyBackedBytes>()?;
     let mac_algorithm_md = hashes::message_digest_from_algorithm(py, &mac_algorithm)?;
     let mac_key = pkcs12_kdf(
-        password,
+        &password,
         &salt,
         KDF_MAC_KEY_ID,
         mac_kdf_iter,
@@ -364,7 +406,8 @@ fn decode_p12(
     Ok(parsed)
 }
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
+#[pyo3(signature = (data, password, backend=None))]
 fn load_key_and_certificates<'p>(
     py: pyo3::Python<'p>,
     data: CffiBuf<'_>,
@@ -414,7 +457,8 @@ fn load_key_and_certificates<'p>(
     Ok((private_key, cert, additional_certs))
 }
 
-#[pyo3::prelude::pyfunction]
+#[pyo3::pyfunction]
+#[pyo3(signature = (data, password, backend=None))]
 fn load_pkcs12<'p>(
     py: pyo3::Python<'p>,
     data: CffiBuf<'_>,
@@ -472,8 +516,8 @@ fn load_pkcs12<'p>(
 
 pub(crate) fn create_submodule(
     py: pyo3::Python<'_>,
-) -> pyo3::PyResult<pyo3::Bound<'_, pyo3::prelude::PyModule>> {
-    let submod = pyo3::prelude::PyModule::new_bound(py, "pkcs12")?;
+) -> pyo3::PyResult<pyo3::Bound<'_, pyo3::types::PyModule>> {
+    let submod = pyo3::types::PyModule::new_bound(py, "pkcs12")?;
 
     submod.add_function(pyo3::wrap_pyfunction_bound!(
         load_key_and_certificates,
